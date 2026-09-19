@@ -31,15 +31,32 @@ jobs:
 
       - name: Start Ngrok Tunnel & Display Connection Info
         run: |
-          Start-Process -FilePath "ngrok" -ArgumentList "tcp 3389"
-          Start-Sleep -Seconds 10
-          $Response = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
-          $PublicUrl = $Response.tunnels[0].public_url
-          Write-Host "============================================="
-          Write-Host "🚀 RDP Address : $PublicUrl"
-          Write-Host "👤 Username    : RDPUser"
-          Write-Host "🔑 Password    : Pass2026RDP#!"
-          Write-Host "============================================="
+          Start-Process -FilePath "ngrok" -ArgumentList "tcp 3389 --log=stdout"
+          
+          # Ngrok API එක ready වන තෙක් තත්පර 15ක් දක්වා බල සිටීම
+          $retries = 0
+          $Response = $null
+          while ($retries -lt 15 -and $Response -eq $null) {
+              Start-Sleep -Seconds 2
+              try {
+                  $Response = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
+              } catch {
+                  $retries++
+                  Write-Host "Waiting for Ngrok API to start... ($retries/15)"
+              }
+          }
+
+          if ($Response -and $Response.tunnels.Count -gt 0) {
+              $PublicUrl = $Response.tunnels[0].public_url
+              Write-Host "============================================="
+              Write-Host "🚀 RDP Address : $PublicUrl"
+              Write-Host "👤 Username    : RDPUser"
+              Write-Host "🔑 Password    : Pass2026RDP#!"
+              Write-Host "============================================="
+          } else {
+              Write-Error "Failed to retrieve Ngrok Public URL"
+              exit 1
+          }
 
       - name: Keep Runner Alive
         run: |
