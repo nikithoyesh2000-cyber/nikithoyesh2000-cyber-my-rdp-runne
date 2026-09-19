@@ -23,30 +23,27 @@ jobs:
 
       - name: Start Pinggy Tunnel & Display Info
         run: |
-          # SSH connection එක background එකේ ආරම්භ කර output එක pinggy.log එකට සේව් කිරීම
-          $job = Start-Job -ScriptBlock {
-              ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -p 443 -R0:localhost:3389 tcp@a.pinggy.io
-          }
+          # Start SSH process in background and redirect output to a log file
+          Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -p 443 -R0:localhost:3389 tcp@a.pinggy.io" -RedirectStandardOutput "pinggy.log" -RedirectStandardError "pinggy_err.log" -NoNewWindow
 
           Write-Host "Waiting for Pinggy RDP Tunnel URL..."
-          Start-Sleep -Seconds 12
+          Start-Sleep -Seconds 15
 
-          # Background job එකේ logs ලබාගැනීම
-          $logs = Receive-Job -Job $job
-
-          # Log එකෙන් RDP URL එක (a.pinggy.link:XXXX) සෙවීම
-          $urlMatch = $logs | Select-String -Pattern '([a-zA-Z0-9-]+\.pinggy\.link:[0-9]+)'
-          
-          if ($urlMatch) {
-              $RdpAddress = $urlMatch.Matches[0].Value
-              Write-Host "============================================="
-              Write-Host "🚀 RDP Address : $RdpAddress"
-              Write-Host "👤 Username    : RDPUser"
-              Write-Host "🔑 Password    : Pass2026RDP#!"
-              Write-Host "============================================="
-          } else {
-              Write-Host "--- Full Pinggy Output ---"
+          # Read logs from output file
+          if (Test-Path "pinggy.log") {
+              $logs = Get-Content "pinggy.log"
+              Write-Host "--- Raw Pinggy Log ---"
               Write-Host ($logs -join "`n")
+
+              $urlMatch = $logs | Select-String -Pattern '([a-zA-Z0-9-]+\.pinggy\.link:[0-9]+)'
+              if ($urlMatch) {
+                  $RdpAddress = $urlMatch.Matches[0].Value
+                  Write-Host "============================================="
+                  Write-Host "🚀 RDP Address : $RdpAddress"
+                  Write-Host "👤 Username    : RDPUser"
+                  Write-Host "🔑 Password    : Pass2026RDP#!"
+                  Write-Host "============================================="
+              }
           }
 
       - name: Keep Runner Alive
