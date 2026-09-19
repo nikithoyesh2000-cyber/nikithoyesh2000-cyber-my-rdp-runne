@@ -9,19 +9,13 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Download & Extract Ngrok
+      - name: Install Ngrok
         run: |
-          $URL = "https://bin.equinox.io/c/b4Pvu3rwcdy/ngrok-v3-stable-windows-amd64.zip"
-          try {
-              Invoke-WebRequest -Uri "https://bin.ngrok.com/windows/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
-          } catch {
-              Invoke-WebRequest -Uri "https://bin.equinox.io/c/b4Pvu3rwcdy/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
-          }
-          Expand-Archive -Path "ngrok.zip" -DestinationPath "."
+          choco install ngrok -y
 
       - name: Authenticate Ngrok
         run: |
-          .\ngrok.exe authtoken ${{ github.event.client_payload.ngrok_token }}
+          ngrok authtoken ${{ github.event.client_payload.ngrok_token }}
 
       - name: Enable RDP & Configure Firewall
         run: |
@@ -38,7 +32,7 @@ jobs:
 
       - name: Start Ngrok Tunnel & Display Connection Info
         run: |
-          Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389"
+          Start-Process -FilePath "ngrok" -ArgumentList "tcp 3389"
           Start-Sleep -Seconds 10
           $Response = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
           $PublicUrl = $Response.tunnels[0].public_url
