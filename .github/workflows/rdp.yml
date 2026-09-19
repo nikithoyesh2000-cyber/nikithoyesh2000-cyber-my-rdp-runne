@@ -31,9 +31,11 @@ jobs:
 
       - name: Start Ngrok Tunnel & Display Connection Info
         run: |
-          Start-Process -FilePath "ngrok" -ArgumentList "tcp 3389 --log=stdout"
+          # Ngrok tunnel එක background job එකක් ලෙස start කිරීම
+          Start-Job -ScriptBlock { ngrok tcp 3389 --log=stdout }
           
-          # Ngrok API එක ready වන තෙක් තත්පර 15ක් දක්වා බල සිටීම
+          Start-Sleep -Seconds 10
+
           $retries = 0
           $Response = $null
           while ($retries -lt 15 -and $Response -eq $null) {
@@ -42,7 +44,7 @@ jobs:
                   $Response = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
               } catch {
                   $retries++
-                  Write-Host "Waiting for Ngrok API to start... ($retries/15)"
+                  Write-Host "Waiting for Ngrok API... ($retries/15)"
               }
           }
 
@@ -54,6 +56,8 @@ jobs:
               Write-Host "🔑 Password    : Pass2026RDP#!"
               Write-Host "============================================="
           } else {
+              Write-Host "--- Ngrok Process Log Output ---"
+              Get-Job | Receive-Job
               Write-Error "Failed to retrieve Ngrok Public URL"
               exit 1
           }
