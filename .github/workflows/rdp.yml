@@ -25,10 +25,9 @@ jobs:
 
       - name: Create RDP User Password
         run: |
-          $Password = ConvertTo-SecureString "P@ssw0rd2026RDP#!" -AsPlainText -Force
-          New-LocalUser -Name "RDPUser" -Password $Password -FullName "RDP User" -Description "RDP Access User"
-          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDPUser"
-          Add-LocalGroupMember -Group "Administrators" -Member "RDPUser"
+          net user RDPUser "P@ssw0rd2026RDP#!" /add
+          net localgroup "Remote Desktop Users" RDPUser /add
+          net localgroup "Administrators" RDPUser /add
 
       - name: Start Ngrok Tunnel & Display Connection Info
         run: |
