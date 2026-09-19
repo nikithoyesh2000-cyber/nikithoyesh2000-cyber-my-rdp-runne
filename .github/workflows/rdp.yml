@@ -28,30 +28,29 @@ jobs:
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDPUser"
           Add-LocalGroupMember -Group "Administrators" -Member "RDPUser"
 
-      - name: Start Serveo TCP Tunnel
+      - name: Install & Start Localtonnel
         run: |
-          # SSH connection via Serveo forwarding port 3389
-          Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -R 0:localhost:3389 serveo.net" -RedirectStandardOutput "serveo.log" -RedirectStandardError "serveo_err.log" -NoNewWindow
+          npm install -g localtunnel
+          
+          # Start localtunnel on background
+          Start-Process -FilePath "npx.cmd" -ArgumentList "localtunnel --port 3389" -RedirectStandardOutput "lt.log" -RedirectStandardError "lt_err.log" -NoNewWindow
           
           Start-Sleep -Seconds 10
 
-          $logs = @()
-          if (Test-Path "serveo.log") { $logs += Get-Content "serveo.log" }
-          if (Test-Path "serveo_err.log") { $logs += Get-Content "serveo_err.log" }
-
-          # Match serveo address format (e.g., serveo.net:12345 or tcp.serveo.net:12345)
-          $portMatch = $logs | Select-String -Pattern 'Forwarding TCP traffic from (.*:[0-9]+)'
-          
-          if ($portMatch) {
-              $RdpAddress = $portMatch.Matches[0].Groups[1].Value
-              Write-Host "============================================="
-              Write-Host "🚀 RDP Address : $RdpAddress"
-              Write-Host "👤 Username    : RDPUser"
-              Write-Host "🔑 Password    : Pass2026RDP#!"
-              Write-Host "============================================="
-          } else {
-              Write-Host "--- Raw Serveo Log ---"
+          if (Test-Path "lt.log") {
+              $logs = Get-Content "lt.log"
+              Write-Host "--- Localtonnel Logs ---"
               Write-Host ($logs -join "`n")
+              
+              $urlMatch = $logs | Select-String -Pattern 'https://(.*)'
+              if ($urlMatch) {
+                  $RdpAddress = $urlMatch.Matches[0].Groups[1].Value
+                  Write-Host "============================================="
+                  Write-Host "🚀 RDP Address : $RdpAddress"
+                  Write-Host "👤 Username    : RDPUser"
+                  Write-Host "🔑 Password    : Pass2026RDP#!"
+                  Write-Host "============================================="
+              }
           }
 
       - name: Keep Runner Alive
