@@ -1,6 +1,5 @@
 const axios = require('axios');
 
-// Environment variables හරහා tokens ලබා ගනී (Hardcoded tokens අයින් කර ඇත)
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const REPO_OWNER = "nikithoyesh2000-cyber";
 const REPO_NAME = "nikithoyesh2000-cyber-my-rdp-runne"; 
@@ -11,6 +10,11 @@ async function triggerRDP() {
 
     if (!GITHUB_TOKEN) {
         console.error("❌ ERROR: GITHUB_TOKEN environment variable එක සෙට් කර නොමැත.");
+        return;
+    }
+
+    if (!NGROK_AUTH_TOKEN) {
+        console.error("❌ ERROR: NGROK_AUTH_TOKEN environment variable එක සෙට් කර නොමැත.");
         return;
     }
 
