@@ -25,9 +25,9 @@ jobs:
 
       - name: Create RDP User Password
         run: |
-          net user RDPUser "P@ssw0rd2026RDP#!" /add
-          net localgroup "Remote Desktop Users" RDPUser /add
-          net localgroup "Administrators" RDPUser /add
+          net user RDPUser "Pass2026RDP#!" /add
+          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDPUser"
+          Add-LocalGroupMember -Group "Administrators" -Member "RDPUser"
 
       - name: Start Ngrok Tunnel & Display Connection Info
         run: |
@@ -38,7 +38,7 @@ jobs:
           Write-Host "============================================="
           Write-Host "🚀 RDP Address : $PublicUrl"
           Write-Host "👤 Username    : RDPUser"
-          Write-Host "🔑 Password    : P@ssw0rd2026RDP#!"
+          Write-Host "🔑 Password    : Pass2026RDP#!"
           Write-Host "============================================="
 
       - name: Keep Runner Alive
