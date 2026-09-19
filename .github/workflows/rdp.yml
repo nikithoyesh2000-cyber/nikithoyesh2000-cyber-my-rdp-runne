@@ -11,7 +11,12 @@ jobs:
     steps:
       - name: Download & Extract Ngrok
         run: |
-          Invoke-WebRequest -Uri "https://cdn.ngrok.com/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
+          $URL = "https://bin.equinox.io/c/b4Pvu3rwcdy/ngrok-v3-stable-windows-amd64.zip"
+          try {
+              Invoke-WebRequest -Uri "https://bin.ngrok.com/windows/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
+          } catch {
+              Invoke-WebRequest -Uri "https://bin.equinox.io/c/b4Pvu3rwcdy/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
+          }
           Expand-Archive -Path "ngrok.zip" -DestinationPath "."
 
       - name: Authenticate Ngrok
