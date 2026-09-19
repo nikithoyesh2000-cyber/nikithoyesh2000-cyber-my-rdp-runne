@@ -1,0 +1,53 @@
+name: Windows RDP Runner
+
+on:
+  repository_dispatch:
+    types: [start-rdp]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Download & Extract Ngrok
+        run: |
+          Invoke-WebRequest -Uri "https://cdn.ngrok.com/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
+          Expand-Archive -Path "ngrok.zip" -DestinationPath "."
+
+      - name: Authenticate Ngrok
+        run: |
+          .\ngrok.exe authtoken ${{ github.event.client_payload.ngrok_token }}
+
+      - name: Enable RDP & Configure Firewall
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+
+      - name: Create RDP User Password
+        run: |
+          $Password = ConvertTo-SecureString "RdpUser@12345" -AsPlainText -Force
+          New-LocalUser -Name "RDPUser" -Password $Password -FullName "RDP User" -Description "RDP Access User"
+          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDPUser"
+          Add-LocalGroupMember -Group "Administrators" -Member "RDPUser"
+
+      - name: Start Ngrok Tunnel & Display Connection Info
+        run: |
+          Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389"
+          Start-Sleep -Seconds 10
+          $Response = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
+          $PublicUrl = $Response.tunnels[0].public_url
+          Write-Host "============================================="
+          Write-Host "🚀 RDP Address : $PublicUrl"
+          Write-Host "👤 Username    : RDPUser"
+          Write-Host "🔑 Password    : RdpUser@12345"
+          Write-Host "============================================="
+
+      - name: Keep Runner Alive
+        run: |
+          $i = 0
+          while ($true) {
+            Start-Sleep -Seconds 60
+            $i++
+            Write-Host "RDP Active... ($i mins elapsed)"
+          }
