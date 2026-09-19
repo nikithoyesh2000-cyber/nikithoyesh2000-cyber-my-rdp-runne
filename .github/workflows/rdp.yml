@@ -21,10 +21,39 @@ jobs:
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDPUser"
           Add-LocalGroupMember -Group "Administrators" -Member "RDPUser"
 
-      - name: Start Pinggy Tunnel
+      - name: Start Pinggy Tunnel & Display Info
         run: |
-          Write-Host "============================================="
-          Write-Host "👤 Username : RDPUser"
-          Write-Host "🔑 Password : Pass2026RDP#!"
-          Write-Host "============================================="
-          ssh -o StrictHostKeyChecking=no -p 443 -R0:localhost:3389 tcp@a.pinggy.io
+          # SSH connection එක background එකේ ආරම්භ කර output එක pinggy.log එකට සේව් කිරීම
+          $job = Start-Job -ScriptBlock {
+              ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -p 443 -R0:localhost:3389 tcp@a.pinggy.io
+          }
+
+          Write-Host "Waiting for Pinggy RDP Tunnel URL..."
+          Start-Sleep -Seconds 12
+
+          # Background job එකේ logs ලබාගැනීම
+          $logs = Receive-Job -Job $job
+
+          # Log එකෙන් RDP URL එක (a.pinggy.link:XXXX) සෙවීම
+          $urlMatch = $logs | Select-String -Pattern '([a-zA-Z0-9-]+\.pinggy\.link:[0-9]+)'
+          
+          if ($urlMatch) {
+              $RdpAddress = $urlMatch.Matches[0].Value
+              Write-Host "============================================="
+              Write-Host "🚀 RDP Address : $RdpAddress"
+              Write-Host "👤 Username    : RDPUser"
+              Write-Host "🔑 Password    : Pass2026RDP#!"
+              Write-Host "============================================="
+          } else {
+              Write-Host "--- Full Pinggy Output ---"
+              Write-Host ($logs -join "`n")
+          }
+
+      - name: Keep Runner Alive
+        run: |
+          $i = 0
+          while ($true) {
+            Start-Sleep -Seconds 60
+            $i++
+            Write-Host "RDP Active... ($i mins elapsed)"
+          }
