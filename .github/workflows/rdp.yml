@@ -21,28 +21,31 @@ jobs:
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDPUser"
           Add-LocalGroupMember -Group "Administrators" -Member "RDPUser"
 
-      - name: Start Pinggy Tunnel & Display Info
+      - name: Download & Start Bore Tunnel
         run: |
-          # Start SSH process in background and redirect output to a log file
-          Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -p 443 -R0:localhost:3389 tcp@a.pinggy.io" -RedirectStandardOutput "pinggy.log" -RedirectStandardError "pinggy_err.log" -NoNewWindow
+          # Download bore binary
+          Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/v0.5.0/bore-v0.5.0-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip"
+          Expand-Archive -Path "bore.zip" -DestinationPath "."
 
-          Write-Host "Waiting for Pinggy RDP Tunnel URL..."
-          Start-Sleep -Seconds 15
+          # Start bore tunnel in background and capture log
+          Start-Process -FilePath ".\bore.exe" -ArgumentList "local 3389 --to bore.pub" -RedirectStandardOutput "bore.log" -RedirectStandardError "bore_err.log" -NoNewWindow
+          
+          Start-Sleep -Seconds 8
 
-          # Read logs from output file
-          if (Test-Path "pinggy.log") {
-              $logs = Get-Content "pinggy.log"
-              Write-Host "--- Raw Pinggy Log ---"
-              Write-Host ($logs -join "`n")
-
-              $urlMatch = $logs | Select-String -Pattern '([a-zA-Z0-9-]+\.pinggy\.link:[0-9]+)'
-              if ($urlMatch) {
-                  $RdpAddress = $urlMatch.Matches[0].Value
+          if (Test-Path "bore.log") {
+              $logs = Get-Content "bore.log"
+              $portMatch = $logs | Select-String -Pattern 'listening at bore.pub:([0-9]+)'
+              
+              if ($portMatch) {
+                  $port = $portMatch.Matches[0].Groups[1].Value
                   Write-Host "============================================="
-                  Write-Host "🚀 RDP Address : $RdpAddress"
+                  Write-Host "🚀 RDP Address : bore.pub:$port"
                   Write-Host "👤 Username    : RDPUser"
                   Write-Host "🔑 Password    : Pass2026RDP#!"
                   Write-Host "============================================="
+              } else {
+                  Write-Host "--- Raw Bore Log ---"
+                  Get-Content "bore.log"
               }
           }
 
