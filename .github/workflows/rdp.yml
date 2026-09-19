@@ -9,64 +9,22 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Install Ngrok
-        run: |
-          choco install ngrok -y
-
-      - name: Authenticate Ngrok
-        run: |
-          ngrok authtoken ${{ github.event.client_payload.ngrok_token }}
-
       - name: Enable RDP & Configure Firewall
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
 
-      - name: Create RDP User Password
+      - name: Create RDP User
         run: |
           net user RDPUser "Pass2026RDP#!" /add
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDPUser"
           Add-LocalGroupMember -Group "Administrators" -Member "RDPUser"
 
-      - name: Start Ngrok Tunnel & Display Connection Info
+      - name: Start Pinggy Tunnel
         run: |
-          # Ngrok tunnel එක background job එකක් ලෙස start කිරීම
-          Start-Job -ScriptBlock { ngrok tcp 3389 --log=stdout }
-          
-          Start-Sleep -Seconds 10
-
-          $retries = 0
-          $Response = $null
-          while ($retries -lt 15 -and $Response -eq $null) {
-              Start-Sleep -Seconds 2
-              try {
-                  $Response = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
-              } catch {
-                  $retries++
-                  Write-Host "Waiting for Ngrok API... ($retries/15)"
-              }
-          }
-
-          if ($Response -and $Response.tunnels.Count -gt 0) {
-              $PublicUrl = $Response.tunnels[0].public_url
-              Write-Host "============================================="
-              Write-Host "🚀 RDP Address : $PublicUrl"
-              Write-Host "👤 Username    : RDPUser"
-              Write-Host "🔑 Password    : Pass2026RDP#!"
-              Write-Host "============================================="
-          } else {
-              Write-Host "--- Ngrok Process Log Output ---"
-              Get-Job | Receive-Job
-              Write-Error "Failed to retrieve Ngrok Public URL"
-              exit 1
-          }
-
-      - name: Keep Runner Alive
-        run: |
-          $i = 0
-          while ($true) {
-            Start-Sleep -Seconds 60
-            $i++
-            Write-Host "RDP Active... ($i mins elapsed)"
-          }
+          Write-Host "============================================="
+          Write-Host "👤 Username : RDPUser"
+          Write-Host "🔑 Password : Pass2026RDP#!"
+          Write-Host "============================================="
+          ssh -o StrictHostKeyChecking=no -p 443 -R0:localhost:3389 tcp@a.pinggy.io
