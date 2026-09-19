@@ -16,8 +16,6 @@ jobs:
           
           Set-Service -Name "TermService" -StartupType Automatic
           Start-Service -Name "TermService" -ErrorAction SilentlyContinue
-          Set-Service -Name "UmRdpService" -StartupType Automatic
-          Start-Service -Name "UmRdpService" -ErrorAction SilentlyContinue
           
           New-NetFirewallRule -DisplayName "Allow RDP Port 3389" -Direction Inbound -LocalPort 3389 -Protocol TCP -Action Allow -ErrorAction SilentlyContinue
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop" -ErrorAction SilentlyContinue
@@ -28,29 +26,29 @@ jobs:
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDPUser"
           Add-LocalGroupMember -Group "Administrators" -Member "RDPUser"
 
-      - name: Install & Start Localtonnel
+      - name: Start Pinggy TCP Tunnel
         run: |
-          npm install -g localtunnel
-          
-          # Start localtunnel on background
-          Start-Process -FilePath "npx.cmd" -ArgumentList "localtunnel --port 3389" -RedirectStandardOutput "lt.log" -RedirectStandardError "lt_err.log" -NoNewWindow
-          
-          Start-Sleep -Seconds 10
+          # Start Pinggy TCP tunnel in background
+          Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -p 443 -R0:localhost:3389 tcp@a.pinggy.io" -RedirectStandardOutput "pinggy.log" -RedirectStandardError "pinggy_err.log" -NoNewWindow
 
-          if (Test-Path "lt.log") {
-              $logs = Get-Content "lt.log"
-              Write-Host "--- Localtonnel Logs ---"
+          Start-Sleep -Seconds 12
+
+          # Read output from Error log where Pinggy writes connection info
+          $logs = @()
+          if (Test-Path "pinggy_err.log") { $logs += Get-Content "pinggy_err.log" }
+          if (Test-Path "pinggy.log") { $logs += Get-Content "pinggy.log" }
+
+          $match = $logs | Select-String -Pattern '([a-zA-Z0-9-]+\.pinggy\.link:[0-9]+)'
+          if ($match) {
+              $RdpAddress = $match.Matches[0].Value
+              Write-Host "============================================="
+              Write-Host "🚀 RDP Address : $RdpAddress"
+              Write-Host "👤 Username    : RDPUser"
+              Write-Host "🔑 Password    : Pass2026RDP#!"
+              Write-Host "============================================="
+          } else {
+              Write-Host "--- Raw Logs ---"
               Write-Host ($logs -join "`n")
-              
-              $urlMatch = $logs | Select-String -Pattern 'https://(.*)'
-              if ($urlMatch) {
-                  $RdpAddress = $urlMatch.Matches[0].Groups[1].Value
-                  Write-Host "============================================="
-                  Write-Host "🚀 RDP Address : $RdpAddress"
-                  Write-Host "👤 Username    : RDPUser"
-                  Write-Host "🔑 Password    : Pass2026RDP#!"
-                  Write-Host "============================================="
-              }
           }
 
       - name: Keep Runner Alive
