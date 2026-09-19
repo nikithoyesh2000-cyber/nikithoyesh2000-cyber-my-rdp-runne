@@ -28,27 +28,25 @@ jobs:
 
       - name: Start Pinggy TCP Tunnel
         run: |
-          # Start Pinggy TCP tunnel in background
-          Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -p 443 -R0:localhost:3389 tcp@a.pinggy.io" -RedirectStandardOutput "pinggy.log" -RedirectStandardError "pinggy_err.log" -NoNewWindow
+          # Use cmd /c with SSH to force output stream capture
+          $process = Start-Process -FilePath "cmd.exe" -ArgumentList '/c ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -p 443 -R 0:localhost:3389 tcp@a.pinggy.io > pinggy.log 2>&1' -PassThru -NoNewWindow
+          
+          Start-Sleep -Seconds 15
 
-          Start-Sleep -Seconds 12
-
-          # Read output from Error log where Pinggy writes connection info
-          $logs = @()
-          if (Test-Path "pinggy_err.log") { $logs += Get-Content "pinggy_err.log" }
-          if (Test-Path "pinggy.log") { $logs += Get-Content "pinggy.log" }
-
-          $match = $logs | Select-String -Pattern '([a-zA-Z0-9-]+\.pinggy\.link:[0-9]+)'
-          if ($match) {
-              $RdpAddress = $match.Matches[0].Value
-              Write-Host "============================================="
-              Write-Host "🚀 RDP Address : $RdpAddress"
-              Write-Host "👤 Username    : RDPUser"
-              Write-Host "🔑 Password    : Pass2026RDP#!"
-              Write-Host "============================================="
-          } else {
-              Write-Host "--- Raw Logs ---"
-              Write-Host ($logs -join "`n")
+          if (Test-Path "pinggy.log") {
+              $logs = Get-Content "pinggy.log"
+              $match = $logs | Select-String -Pattern '([a-zA-Z0-9-]+\.pinggy\.link:[0-9]+)'
+              if ($match) {
+                  $RdpAddress = $match.Matches[0].Value
+                  Write-Host "============================================="
+                  Write-Host "🚀 RDP Address : $RdpAddress"
+                  Write-Host "👤 Username    : RDPUser"
+                  Write-Host "🔑 Password    : Pass2026RDP#!"
+                  Write-Host "============================================="
+              } else {
+                  Write-Host "--- Raw Logs ---"
+                  Write-Host ($logs -join "`n")
+              }
           }
 
       - name: Keep Runner Alive
