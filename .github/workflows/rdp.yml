@@ -11,17 +11,14 @@ jobs:
     steps:
       - name: Enable RDP, Services & Firewall
         run: |
-          # Registry tweak for RDP
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
           
-          # Start Remote Desktop Service & RPC Services
           Set-Service -Name "TermService" -StartupType Automatic
           Start-Service -Name "TermService" -ErrorAction SilentlyContinue
           Set-Service -Name "UmRdpService" -StartupType Automatic
           Start-Service -Name "UmRdpService" -ErrorAction SilentlyContinue
           
-          # Force Firewall Port 3389 Allow Rule
           New-NetFirewallRule -DisplayName "Allow RDP Port 3389" -Direction Inbound -LocalPort 3389 -Protocol TCP -Action Allow -ErrorAction SilentlyContinue
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop" -ErrorAction SilentlyContinue
 
@@ -31,31 +28,30 @@ jobs:
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDPUser"
           Add-LocalGroupMember -Group "Administrators" -Member "RDPUser"
 
-      - name: Download & Start Bore Tunnel
+      - name: Start Serveo TCP Tunnel
         run: |
-          Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/v0.5.0/bore-v0.5.0-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip"
-          Expand-Archive -Path "bore.zip" -DestinationPath "."
-
-          # Start Bore Tunnel
-          Start-Process -FilePath ".\bore.exe" -ArgumentList "local 3389 --to bore.pub" -RedirectStandardOutput "bore.log" -RedirectStandardError "bore_err.log" -NoNewWindow
+          # SSH connection via Serveo forwarding port 3389
+          Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -R 0:localhost:3389 serveo.net" -RedirectStandardOutput "serveo.log" -RedirectStandardError "serveo_err.log" -NoNewWindow
           
           Start-Sleep -Seconds 10
 
-          if (Test-Path "bore.log") {
-              $logs = Get-Content "bore.log"
-              $portMatch = $logs | Select-String -Pattern 'listening at bore.pub:([0-9]+)'
-              
-              if ($portMatch) {
-                  $port = $portMatch.Matches[0].Groups[1].Value
-                  Write-Host "============================================="
-                  Write-Host "🚀 RDP Address : bore.pub:$port"
-                  Write-Host "👤 Username    : RDPUser"
-                  Write-Host "🔑 Password    : Pass2026RDP#!"
-                  Write-Host "============================================="
-              } else {
-                  Write-Host "--- Raw Bore Log ---"
-                  Get-Content "bore.log"
-              }
+          $logs = @()
+          if (Test-Path "serveo.log") { $logs += Get-Content "serveo.log" }
+          if (Test-Path "serveo_err.log") { $logs += Get-Content "serveo_err.log" }
+
+          # Match serveo address format (e.g., serveo.net:12345 or tcp.serveo.net:12345)
+          $portMatch = $logs | Select-String -Pattern 'Forwarding TCP traffic from (.*:[0-9]+)'
+          
+          if ($portMatch) {
+              $RdpAddress = $portMatch.Matches[0].Groups[1].Value
+              Write-Host "============================================="
+              Write-Host "🚀 RDP Address : $RdpAddress"
+              Write-Host "👤 Username    : RDPUser"
+              Write-Host "🔑 Password    : Pass2026RDP#!"
+              Write-Host "============================================="
+          } else {
+              Write-Host "--- Raw Serveo Log ---"
+              Write-Host ($logs -join "`n")
           }
 
       - name: Keep Runner Alive
