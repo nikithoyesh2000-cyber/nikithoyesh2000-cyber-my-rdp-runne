@@ -9,13 +9,21 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Enable RDP & Configure Firewall
+      - name: Enable RDP, Services & Firewall
         run: |
+          # Registry tweak for RDP
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
+          
+          # Start Remote Desktop Service & RPC Services
           Set-Service -Name "TermService" -StartupType Automatic
-          Start-Service -Name "TermService"
-          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          Start-Service -Name "TermService" -ErrorAction SilentlyContinue
+          Set-Service -Name "UmRdpService" -StartupType Automatic
+          Start-Service -Name "UmRdpService" -ErrorAction SilentlyContinue
+          
+          # Force Firewall Port 3389 Allow Rule
+          New-NetFirewallRule -DisplayName "Allow RDP Port 3389" -Direction Inbound -LocalPort 3389 -Protocol TCP -Action Allow -ErrorAction SilentlyContinue
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop" -ErrorAction SilentlyContinue
 
       - name: Create RDP User
         run: |
@@ -28,9 +36,10 @@ jobs:
           Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/v0.5.0/bore-v0.5.0-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip"
           Expand-Archive -Path "bore.zip" -DestinationPath "."
 
+          # Start Bore Tunnel
           Start-Process -FilePath ".\bore.exe" -ArgumentList "local 3389 --to bore.pub" -RedirectStandardOutput "bore.log" -RedirectStandardError "bore_err.log" -NoNewWindow
           
-          Start-Sleep -Seconds 8
+          Start-Sleep -Seconds 10
 
           if (Test-Path "bore.log") {
               $logs = Get-Content "bore.log"
