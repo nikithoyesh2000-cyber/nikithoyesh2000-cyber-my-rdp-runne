@@ -25,7 +25,7 @@ jobs:
 
       - name: Create RDP User Password
         run: |
-          $Password = ConvertTo-SecureString "RdpUser@12345" -AsPlainText -Force
+          $Password = ConvertTo-SecureString "P@ssw0rd2026RDP#!" -AsPlainText -Force
           New-LocalUser -Name "RDPUser" -Password $Password -FullName "RDP User" -Description "RDP Access User"
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDPUser"
           Add-LocalGroupMember -Group "Administrators" -Member "RDPUser"
@@ -39,7 +39,7 @@ jobs:
           Write-Host "============================================="
           Write-Host "🚀 RDP Address : $PublicUrl"
           Write-Host "👤 Username    : RDPUser"
-          Write-Host "🔑 Password    : RdpUser@12345"
+          Write-Host "🔑 Password    : P@ssw0rd2026RDP#!"
           Write-Host "============================================="
 
       - name: Keep Runner Alive
